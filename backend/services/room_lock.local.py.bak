@@ -1,0 +1,140 @@
+"""Đúng MỘT tiến trình được sở hữu file state của phòng.
+
+VÌ SAO CẦN: `routers/room.py` tạo `store` và `hub` ở mức module, và `main.py`
+(cổng 8000) lẫn `scripts/room_server.py` (cổng 8100) đều import nó. Chạy cả hai
+cùng lúc - chuyện rất dễ xảy ra vì cái sau sinh ra để thay cái trước - thì có
+HAI bản state trong RAM cùng trỏ vào một `room_state/room-default.json`. Mỗi bên
+debounce-flush đè lên nhau, ai ghi sau thắng, và nửa giỏ đáp án của nhóm bốc hơi
+mà không một dòng log nào báo. Giữa buổi thi thì đó là mất trắng.
+
+CÁCH LÀM: khoá byte-range của HĐH trên một file `.lock` nằm cạnh state. Chọn nó
+thay vì file PID vì HĐH tự nhả khoá khi tiến trình chết - kể cả bị kill -9 hay
+mất điện - nên không bao giờ có khoá mồ côi phải đi dọn tay, đúng thứ không ai
+muốn gặp lúc đang thi.
+
+BỐ CỤC FILE: byte 0 là chỗ cắm khoá (nội dung `#` vô nghĩa), từ byte 1 trở đi là
+JSON mô tả ai đang giữ. Tách vậy vì trên Windows `msvcrt.locking` là khoá CƯỠNG
+CHẾ - đọc trúng vùng đã khoá sẽ lỗi - nên phần cần cho người đọc phải nằm ngoài
+vùng khoá, không thì thông báo lỗi lại chẳng nói được ai đang giữ.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
+# Giữ fd sống suốt đời tiến trình: fd bị GC đóng là khoá nhả ra, và tiến trình
+# thứ hai lẻn vào được đúng lúc mình vẫn đang ghi.
+_held_fd: Optional[int] = None
+
+# uvicorn --reload thay worker bằng cách kill cũ rồi start mới. Nó có join tiến
+# trình cũ trước, nhưng HĐH nhả khoá không nhất thiết tức thì, nên thử lại vài
+# nhịp trước khi kết luận - kết luận nhầm ở đây nghĩa là mỗi lần sửa code là
+# phòng tự tắt cho tới lần reload sau.
+_RETRY_S = 2.0
+_RETRY_STEP_S = 0.1
+
+_INFO_OFFSET = 1  # byte 0 dành cho khoá
+
+
+def _lock_path(state_path: Path) -> Path:
+    return state_path.with_name(state_path.name + ".lock")
+
+
+def _try_lock(fd: int) -> bool:
+    """True = giành được. False = tiến trình khác đang giữ."""
+    os.lseek(fd, 0, os.SEEK_SET)
+    try:
+        if sys.platform == "win32":
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        else:
+            fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB, 1, 0, os.SEEK_SET)
+        return True
+    except OSError:
+        return False
+
+
+def _read_holder(path: Path) -> str:
+    """Mô tả người đang giữ khoá, đọc từ ngoài vùng bị khoá."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(_INFO_OFFSET)
+            info = json.loads(f.read().decode("utf-8").strip() or "{}")
+        pid = info.get("pid", "?")
+        return f"{info.get('label', 'tiến trình khác')} (PID {pid}, giữ từ {info.get('at', '?')})"
+    except Exception:  # noqa: BLE001 - file khoá hỏng thì vẫn phải nói được điều chính
+        return "một tiến trình khác"
+
+
+def _write_holder(fd: int, label: str) -> None:
+    info = json.dumps(
+        {"label": label, "pid": os.getpid(), "at": datetime.now().isoformat(timespec="seconds")},
+        ensure_ascii=False,
+    )
+    payload = b"#" + info.encode("utf-8")
+    os.lseek(fd, 0, os.SEEK_SET)
+    os.write(fd, payload)
+    os.ftruncate(fd, len(payload))
+
+
+def acquire(state_path: Path, label: str) -> Optional[str]:
+    """Giành quyền sở hữu state phòng.
+
+    Trả về None nếu thành công (khoá giữ tới lúc tiến trình chết), hoặc một câu
+    tiếng Việt mô tả ai đang giữ nếu thua. Gọi hai lần trong cùng tiến trình là
+    no-op - an toàn khi cả lifespan lẫn main() cùng gọi.
+
+    KHÔNG BAO GIỜ ném lỗi: khoá là lưới an toàn, và một lưới an toàn làm sập
+    backend giữa buổi thi thì tệ hơn cái nó phòng. Ổ đĩa mạng không hỗ trợ khoá
+    thì cho qua kèm cảnh báo, chứ không chặn.
+    """
+    global _held_fd
+    if _held_fd is not None:
+        return None
+
+    path = _lock_path(state_path)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
+    except OSError as exc:
+        print(f"[room] không mở được file khoá ({exc}) -> bỏ qua kiểm tra tiến trình trùng")
+        return None
+
+    # Byte 0 phải TỒN TẠI trước khi khoá: khoá vùng vượt EOF được HĐH chấp nhận
+    # nhưng hành vi lệch nhau giữa các nền tảng. Hai tiến trình cùng ghi byte này
+    # cũng vô hại vì nội dung như nhau.
+    try:
+        if os.fstat(fd).st_size == 0:
+            os.write(fd, b"#")
+    except OSError:
+        pass
+
+    deadline = time.monotonic() + _RETRY_S
+    while True:
+        if _try_lock(fd):
+            _held_fd = fd
+            try:
+                _write_holder(fd, label)
+            except OSError:
+                pass  # giữ được khoá mới là việc chính, ghi lý lịch chỉ để báo lỗi đẹp
+            return None
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(_RETRY_STEP_S)
+
+    holder = _read_holder(path)
+    os.close(fd)
+    return (
+        f"State phòng ({state_path}) đang do {holder} sở hữu. "
+        "Hai tiến trình cùng ghi một file state sẽ đè snapshot của nhau và làm mất giỏ đáp án, "
+        "nên tiến trình này không phục vụ /room. Tắt bớt một cái, hoặc trỏ ROOM_DIR sang thư mục khác."
+    )

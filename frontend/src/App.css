@@ -1,0 +1,65 @@
+/* src/App.css */
+@import 'tailwindcss';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MÀU NHẤN CỦA APP.
+   Ghi đè thẳng thang `blue` của Tailwind thay vì thêm một tên màu mới: xanh
+   dương là màu nhấn ở gần 120 chỗ trong mã (nút chính, câu đang chọn, viền
+   focus, hạng 1 trong giỏ...). Đổi ở đây là đổi hết một lượt và không thể sót
+   chỗ nào - thêm màu mới thì phải sửa tay từng class, sót một cái là hai sắc
+   xanh đứng cạnh nhau.
+
+   Thang mặc định của Tailwind (blue-600 = #2563eb) quá rực: cả buổi thi ngồi
+   nhìn lưới keyframe sáng trắng, mấy trăm ô có viền/nhãn xanh chói làm mỏi mắt.
+   Thang dưới đây cùng tông xanh nước biển nhưng tối và trầm hơn (hue ~215°,
+   giảm độ bão hoà). Chữ trắng trên blue-600 mới vẫn đạt tương phản ~8:1, tức
+   còn dễ đọc hơn màu cũ. */
+@theme {
+  --color-blue-50:  #eff4f9;
+  --color-blue-100: #dbe7f1;
+  --color-blue-200: #bccfe3;
+  --color-blue-300: #8fadcd;
+  --color-blue-400: #5c85b0;
+  --color-blue-500: #3a6595;
+  --color-blue-600: #2a5183;
+  --color-blue-700: #21406a;
+  --color-blue-800: #1d3557;
+  --color-blue-900: #1a2c48;
+  --color-blue-950: #131f33;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+}
+
+/* Pill chọn câu (QuestionSwitcher) - nút tròn ⇄ pill là hai DOM khác nhau nên
+   không morph được; thay vào đó mỗi trạng thái tự "nở" ra từ góc dưới-phải để
+   mắt đọc là một khối duy nhất đang biến hình. transform-origin đặt ở đúng góc
+   neo của widget (fixed bottom-right). */
+@keyframes qs-pop-in {
+  from { opacity: 0; transform: scale(0.85) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes qs-pill-in {
+  from { opacity: 0; transform: scaleX(0.55); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+.qs-anim-pop  { animation: qs-pop-in 180ms cubic-bezier(0.34, 1.4, 0.64, 1) both; transform-origin: bottom right; }
+.qs-anim-pill { animation: qs-pill-in 200ms cubic-bezier(0.34, 1.4, 0.64, 1) both; transform-origin: center right; }
+
+@media (prefers-reduced-motion: reduce) {
+  .qs-anim-pop, .qs-anim-pill { animation: none; }
+}
+
+/* Virtualization-lite: trình duyệt bỏ qua render/layout/paint các ô ngoài
+   viewport. contain-intrinsic-size giữ chiều cao ước lượng để scroll không
+   nhảy (ô là aspect 16/9). Áp cho mỗi ô lưới kết quả. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}

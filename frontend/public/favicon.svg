@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Favicon: monogram "A" (AI Challenge) khối đặc trên nền navy.
+       Ruột chữ A là subpath vẽ ngược chiều với thân chữ để fill-rule nonzero
+       khoét thành lỗ - đừng đảo thứ tự điểm, chữ sẽ đặc lại thành tam giác. -->
+  <rect width="32" height="32" rx="8" fill="#0f172a"/>
+  <path d="M16 7 L24 25 H20.1 L18.6 21.3 H13.4 L11.9 25 H8 Z M16 13.2 L14.6 17.9 H17.4 Z" fill="#ffffff"/>
+</svg>

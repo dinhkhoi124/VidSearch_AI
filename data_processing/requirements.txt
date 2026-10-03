@@ -1,0 +1,33 @@
+# --- Core ---
+numpy>=1.26.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+tqdm>=4.66.0
+
+# --- Image/text embeddings (step 02) ---
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.45.0          # >=4.45 needed for SigLIP 2
+# Jina-CLIP v2 (trust_remote_code) extra deps:
+einops>=0.7.0
+timm>=0.9.16
+sentencepiece>=0.2.0          # also used by BEiT-3 tokenizer
+# BEiT-3 only: also clone microsoft/unilm and download the checkpoint + beit3.spm,
+# then set BEIT3_REPO_DIR / BEIT3_CKPT / BEIT3_SPM (see README "Embedding models").
+
+# --- Vector index (step 03) ---
+faiss-cpu>=1.7.4          # use faiss-gpu if you have CUDA + lots of vectors
+
+# --- OCR (step 04) ---
+easyocr>=1.7.0
+
+# --- ASR (step 05) ---
+faster-whisper>=1.0.0
+
+# --- Semantic text indexes (step 07) - hybrid OCR/ASR search ---
+sentence-transformers>=2.7.0
+
+# --- Shot detection (step 01) ---
+# TransNetV2 uses TensorFlow. Install separately and download SavedModel weights,
+# see ../../AIC-HCMC-2025/data_processing/transnetv2_setup.md
+# tensorflow[and-cuda]

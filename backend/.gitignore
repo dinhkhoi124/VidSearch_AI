@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+.DS_Store
+
+# Heavy data - keep out of git
+# (media/ đã chuyển sang frontend/public/media/ - BE không còn media trên disk)
+data/indexes/*.index
+data/indexes/*.faiss
+!data/indexes/.gitkeep
+data/*/*
+data/*
+backend/data/*
+
+*.zip
+
+# State phòng thi nhóm (giỏ đáp án chung) - dữ liệu của MỘT buổi thi, không
+# phải mã nguồn. Xem services/room_store.py.
+room_state/
+
+# Kết quả từng lần chạy eval (artifact, sinh lại được bằng scripts/eval_agent.py).
+# KHÔNG ignore cả eval/: sotuyen12.json là ground truth kiểm tay và README mô tả
+# cách đo - đó là nguồn, mất là phải làm lại từ đầu.
+eval/runs/
+eval/*

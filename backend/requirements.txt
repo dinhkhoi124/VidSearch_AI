@@ -1,0 +1,32 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+numpy>=1.26.0
+Pillow>=10.0.0
+# BẮT BUỘC: metadata_service import httpx ở module level (fetch bytes keyframe từ
+# FE cho rerank/agent), mà module đó nằm trên đường main -> routers -> services.
+# Thiếu gói này thì backend chết ngay lúc khởi động, không phải lúc dùng tới.
+httpx>=0.27.0
+# Vector search (uncomment what you actually use)
+faiss-cpu>=1.7.4
+# Embedding models (uncomment what you actually use)
+torch>=2.1.0
+torchvision>=0.16.0
+# 4.56 là bản đầu tiên có kiến trúc MetaCLIP 2 (model_type "metaclip_2"). Bản cũ
+# hơn load facebook/metaclip-2-* sẽ báo model type không nhận diện được.
+transformers>=4.56.0
+# Tải weight nhanh: hf_xet là đường mặc định của hub >= 0.32 (chunk + dedup),
+# hf_transfer là downloader Rust đa luồng cho repo chưa lên Xet.
+huggingface_hub>=0.32.0
+hf_xet>=1.0.0
+hf_transfer>=0.1.6
+open-clip-torch>=2.24.0
+# jina-clip-v2 (model=jina / ensemble) - remote code cần 2 gói này
+einops>=0.7.0
+timm>=0.9.0
+# Semantic OCR/ASR text search (hybrid) - E5 sentence embeddings
+sentence-transformers>=2.7.0
+# Fuzzy fallback for OCR/ASR when semantic is unavailable (TEXT_FALLBACK_MODE=fuzzy)
+rapidfuzz>=3.6.0

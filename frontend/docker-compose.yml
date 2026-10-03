@@ -1,0 +1,14 @@
+services:
+  frontend:
+    container_name: react-frontend
+    build:
+      context: C:/D/Ho-Chi-Minh-AI-Challenge-2026_Front-end/ai-challenge-frontend 
+    ports:
+      - "3000:80"
+    networks:
+      - ai-challenge-network
+    restart: unless-stopped
+
+networks:
+  ai-challenge-network:
+    external: true

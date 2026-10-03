@@ -1,0 +1,30 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Media nặng - serve trực tiếp bởi Vite dev server từ frontend/public/media.
+# KHÔNG commit (~11GB keyframe webp). Production deploy dùng CDN tách.
+public/media/frames/
+public/media/videos/
+public/media/scenes/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
